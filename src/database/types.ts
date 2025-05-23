@@ -26,10 +26,18 @@ export interface Stars {
   personId: number
 }
 
+export interface Screenings {
+  id: number | null
+  movieId: number
+  timestamp: string
+  ticketAllocation: number
+}
+
 export interface DB {
   directors: Directors
   movies: Movies
   people: People
   ratings: Ratings
   stars: Stars
+  screenings: Screenings
 }
