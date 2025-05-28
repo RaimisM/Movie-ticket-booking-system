@@ -5,6 +5,16 @@ import { ZodError } from 'zod'
 const { NODE_ENV } = process.env
 const isTest = NODE_ENV === 'test'
 
+function getErrorStatusCode(error: Error) {
+  if ('status' in error && typeof error.status === 'number') {
+    return error.status
+  }
+
+  if (error instanceof ZodError) return StatusCodes.BAD_REQUEST
+
+  return StatusCodes.INTERNAL_SERVER_ERROR
+}
+
 /**
  * Reports error in a simple structured JSON format.
  */
@@ -28,16 +38,5 @@ const jsonErrors: ErrorRequestHandler = (error, _req, res, _next) => {
   })
 }
 
-function getErrorStatusCode(error: Error) {
-  if ('status' in error && typeof error.status === 'number') {
-    return error.status
-  }
-
-  // some implementation detail awareness
-  if (error instanceof ZodError) return StatusCodes.BAD_REQUEST
-
-  // assume the worst
-  return StatusCodes.INTERNAL_SERVER_ERROR
-}
 
 export default jsonErrors

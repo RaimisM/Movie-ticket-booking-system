@@ -1,22 +1,19 @@
 import type { MigrationProvider, Migration } from 'kysely';
 
-/**
- * This migration provider is used when running migrations from the
- * ES module environment. It uses the import.meta.glob function to
- * find all the migrations.
- */
 export default class ModuleMigrationProvider implements MigrationProvider {
-  // eslint-disable-next-line class-methods-use-this
-  async getMigrations(): Promise<Record<string, Migration>> {
-    // @ts-ignore
-    const migrations: Record<string, Migration> = import.meta.glob(
-      // hard-coded due to how import.meta.glob works
-      '../../../src/database/migrations/**.ts',
-      {
-        eager: true,
-      }
-    );
+  private migrations: Record<string, Migration> | null = null;
 
-    return migrations;
+  // Blank line added here to satisfy ESLint rule
+
+  async getMigrations(): Promise<Record<string, Migration>> {
+    if (!this.migrations) {
+      // @ts-ignore
+      this.migrations = import.meta.glob(
+        '../../../src/database/migrations/**.ts',
+        { eager: true }
+      );
+    }
+    // migrations is definitely not null here
+    return this.migrations!;
   }
 }

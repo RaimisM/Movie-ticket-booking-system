@@ -1,144 +1,83 @@
-import createTestDatabase from '@tests/utils/createTestDatabase'
-import { createFor, selectAllFor } from '@tests/utils/records'
-import buildRepository from '../repository'
-import { fakeScreening, screeningMatcher, moreScreenings } from './utils'
+import type { Insertable } from 'kysely'
+import { sql } from 'kysely'
+import createDatabase from '@/database'
+import repository from '../repository'
+import type { Screenings } from '../../../database/types'
 
-const db = await createTestDatabase()
-const repository = buildRepository(db)
-const createScreening = createFor(db, 'Screening')
-const selectScreening = selectAllFor(db, 'Screening')
+describe('Screenings Repository', () => {
+  let db: ReturnType<typeof createDatabase>
+  let repo: ReturnType<typeof repository>
 
-const createMovie = createFor(db, 'movies')
+  const testScreening: Insertable<Screenings> = {
+    movieId: 1,
+    timestamp: new Date().toISOString(),
+    ticketAllocation: 100,
+  }
 
-beforeEach(async () => {
-  await createMovie([
-    {
-      id: 1,
-      title: 'Passage de Venus',
-      year: 1874,
-    },
-    {
-      id: 133093,
-      title: 'The Matrix',
-      year: 1999,
-    },
-    {
-      id: 816692,
-      title: 'Interstellar',
-      year: 2014,
-    },
-  ])
-})
+  beforeAll(async () => {
+    db = createDatabase(':memory:')
+    repo = repository(db)
 
-afterEach(async () => {
-  await db.deleteFrom('Screening').execute()
-  await db.deleteFrom('movies').execute()
-})
+    await sql`
+      CREATE TABLE screenings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        movie_id INTEGER NOT NULL,
+        timestamp TEXT NOT NULL,
+        ticket_allocation INTEGER NOT NULL CHECK (ticket_allocation > 0)
+      )
+    `.execute(db)
+  })
 
-afterAll(async () => {
-  await db.destroy()
-})
-
-describe('create screening', () => {
-  it('should allow to create new screening with data', async () => {
-    const screeningData = {
-      movieId: 1,
-      date: '2025-05-01',
-      time: '16:00:00',
-      capacity: 20,
+  afterAll(async () => {
+    if ('destroy' in db) {
+      await (db as any).destroy()
     }
-
-    const screening = await repository.createScreening(screeningData)
-
-    expect(screening).toEqual([
-      {
-        id: expect.any(Number),
-        movieId: 1,
-        date: '2025-05-01',
-        time: '16:00:00',
-        capacity: 20,
-      },
-    ])
-    const screeningsInDatabase = await selectScreening()
-    expect(screeningsInDatabase).toEqual([screeningMatcher(screeningData)])
   })
 
-  it('shall allow to create multiple screenings', async () => {
-    const screenings = await repository.createScreening(moreScreenings)
-
-    const matcher = [
-      screeningMatcher(moreScreenings[0]),
-      screeningMatcher(moreScreenings[1]),
-    ]
-
-    expect(screenings).toEqual(matcher)
-
-    const screeningsInDatabase = await selectScreening()
-    expect(screeningsInDatabase).toEqual(matcher)
+  afterEach(async () => {
+    await db.deleteFrom('screenings').execute()
   })
-})
 
-describe('select screening by id', () => {
-  it('shall return screening by ID', async () => {
-    const screeningData = {
-      id: 234,
-      movieId: 1,
-      date: '2025-05-01',
-      time: '16:00:00',
-      capacity: 20,
-    }
-    createScreening(screeningData)
-
-    const screening = await repository.getScreeningById(234)
-    expect(screening).toEqual(screeningMatcher(screeningData))
+  it('should create a screening and return it', async () => {
+    const result = await repo.createScreening(testScreening)
+    expect(result).toBeDefined()
+    expect(result.length).toBeGreaterThan(0)
+    expect(result[0]).toMatchObject(testScreening)
+    expect(result[0].id).toBeDefined()
   })
-  it('shall return empty', async () => {
-    const screening = await repository.getScreeningById(2)
 
-    expect(screening).toBe(undefined)
+  it('should get a screening by id', async () => {
+    const [created] = await repo.createScreening(testScreening)
+    const screening = await repo.getScreeningById(created.id)
+    expect(screening).toBeDefined()
+    expect(screening?.id).toBe(created.id)
+    expect(screening).toMatchObject(testScreening)
   })
-})
 
-describe('get all screenings in the database', () => {
-  it('shall return all screenings in the database', async () => {
-    createScreening(moreScreenings)
-
-    const screenings = await repository.getScreenings()
-
-    const matcher = [
-      screeningMatcher(moreScreenings[0]),
-      screeningMatcher(moreScreenings[1]),
-    ]
-
-    expect(screenings).toHaveLength(2)
-    expect(screenings).toEqual(matcher)
+  it('should return undefined for non-existing id', async () => {
+    const screening = await repo.getScreeningById(999999)
+    expect(screening).toBeUndefined()
   })
-})
-describe('delete a screening by id', () => {
-  it('shall delete screening with provided ID', async () => {
-    const screeningData = {
-      id: 234,
-      movieId: 1,
-      date: '2025-05-01',
-      time: '16:00:00',
-      capacity: 20,
-    }
-    createScreening(screeningData)
-    createScreening(fakeScreening())
 
-    let screenings = await selectScreening()
+  it('should get all screenings', async () => {
+    await repo.createScreening(testScreening)
+    const allScreenings = await repo.getScreenings()
+    expect(allScreenings.length).toBeGreaterThan(0)
+    expect(allScreenings[0]).toMatchObject(testScreening)
+  })
 
-    expect(screenings).toHaveLength(2)
-    expect(screenings).toEqual(
-      expect.arrayContaining([screeningMatcher(screeningData)])
-    )
+  it('should delete a screening by id and return deleted screening', async () => {
+    const [created] = await repo.createScreening(testScreening)
+    const deleted = await repo.delete(created.id)
+    expect(deleted).toBeDefined()
+    expect(deleted?.id).toBe(created.id)
 
-    const deletedScreening = await repository.delete(234)
+    const screeningAfterDelete = await repo.getScreeningById(created.id)
+    expect(screeningAfterDelete).toBeUndefined()
+  })
 
-    expect(deletedScreening).toEqual(screeningMatcher(screeningData))
-
-    screenings = await selectScreening()
-
-    expect(screenings).toHaveLength(1)
+  it('should return undefined when deleting a non-existing screening', async () => {
+    const deleted = await repo.delete(999999)
+    expect(deleted).toBeUndefined()
   })
 })

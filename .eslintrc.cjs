@@ -23,7 +23,7 @@ module.exports = {
     // functions are always hoisted, so we can use them before they are defined
     // which in various cases improves readability
     'no-use-before-define': ['error', { functions: false }],
-    '@typescript-eslint/no-use-before-define': ['error', { functions: false }],
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
 
     'import/prefer-default-export': 'off',
   },

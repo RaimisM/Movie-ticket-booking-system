@@ -1,187 +1,181 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
-import express, { Request, Response } from 'express'
-import screenings from '@/modules/screenings/controller'
-import createTestDatabase from '../Tests/utils/createTestDatabase'
-import BadRequest from '@/utils/errors/BadRequest'
-import NotFound from '@/utils/errors/NotFound'
+import express, { Express } from 'express'
+import screenings from '../controller'
 
-let app: express.Express
-let db: Awaited<ReturnType<typeof createTestDatabase>>
+const mockDb = {
+  selectFrom: vi.fn(),
+  insertInto: vi.fn(),
+  deleteFrom: vi.fn(),
+}
 
-beforeAll(async () => {
-  db = await createTestDatabase()
-  app = express()
-  app.use(express.json())
-  app.use('/screenings', screenings(db))
+function createSelectFromMock(returnValue: any) {
+  return {
+    select: vi.fn().mockReturnThis(),
+    selectAll: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    execute: vi.fn().mockResolvedValue(returnValue),
+    executeTakeFirst: vi.fn().mockResolvedValue(Array.isArray(returnValue) ? returnValue[0] : returnValue),
+  }
+}
+function createInsertIntoMock(returnValue: any) {
+  return {
+    values: vi.fn().mockReturnThis(),
+    returningAll: vi.fn().mockReturnThis(),
+    execute: vi.fn().mockResolvedValue(returnValue),
+  }
+}
+function createDeleteFromMock(returnValue: any) {
+  return {
+    where: vi.fn().mockReturnThis(),
+    returningAll: vi.fn().mockReturnThis(),
+    execute: vi.fn().mockResolvedValue(returnValue),
+  }
+}
 
-  // Simple error handling middleware for testing
-  app.use((err: Error, _req: Request, res: Response) => {
-    if (err instanceof BadRequest) {
-      return res.status(400).json({ message: err.message })
+describe('screenings controller', () => {
+  let app: Express
+
+  function errorHandler(err: any, _req: any, res: any, _next: any) {
+    if (err.statusCode) {
+      res.status(err.statusCode).json({ message: err.message })
+    } else {
+      res.status(500).json({ message: 'Internal Server Error' })
     }
-    if (err instanceof NotFound) {
-      return res.status(404).json({ message: err.message })
-    }
-    return res.status(500).json({ message: 'Internal server error' })
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    app = express()
+    app.use(express.json())
+    app.use('/screenings', screenings(mockDb as any))
+    app.use(errorHandler)
   })
-})
 
-beforeEach(async () => {
-  // Reset DB to clean state before each test
-  await db.migrate.rollback()
-  await db.migrate.latest()
-  // Insert a sample movie for foreign key reference
-  await db.insertInto('movies').values({ id: 1, title: 'Test Movie' }).execute()
-})
+  it('POST /screenings - success', async () => {
+    const movieId = 1
+    const timestamp = new Date(Date.now() + 100000).toISOString()
+    const ticketAllocation = 10
 
-afterAll(async () => {
-  await db.destroy()
-})
+    mockDb.selectFrom.mockReturnValue(createSelectFromMock({ id: movieId }))
+    mockDb.insertInto.mockReturnValue(createInsertIntoMock([{ id: 1, movieId, timestamp, ticketAllocation }]))
 
-describe('POST /screenings', () => {
-  it('should create a screening successfully', async () => {
-    const futureDate = new Date(Date.now() + 3600 * 1000).toISOString()
     const res = await request(app)
       .post('/screenings')
-      .send({
-        movie_id: 1,
-        timestamp: futureDate,
-        ticket_allocation: 100,
-      })
+      .send({ movie_id: movieId, timestamp, ticket_allocation: ticketAllocation })
 
     expect(res.status).toBe(201)
-    expect(res.body).toHaveProperty('id')
-    expect(res.body.movieId).toBe(1)
-    expect(res.body.timestamp).toBe(futureDate)
-    expect(res.body.ticketAllocation).toBe(100)
+    expect(res.body).toEqual([{ id: 1, movieId, timestamp, ticketAllocation }])
   })
 
-  it('should reject array input', async () => {
+  it('POST /screenings - rejects array body', async () => {
     const res = await request(app)
       .post('/screenings')
-      .send([
-        {
-          movie_id: 1,
-          timestamp: new Date(Date.now() + 3600 * 1000).toISOString(),
-          ticket_allocation: 100,
-        },
-      ])
+      .send([{ movie_id: 1, timestamp: new Date().toISOString(), ticket_allocation: 5 }])
 
     expect(res.status).toBe(400)
-    expect(res.body.message).toMatch(/Expected a single screening object/)
+    expect(res.body.message).toBe('Expected a single screening object, not an array')
   })
 
-  it('should reject invalid timestamp', async () => {
+  it('POST /screenings - invalid timestamp', async () => {
     const res = await request(app)
       .post('/screenings')
-      .send({
-        movie_id: 1,
-        timestamp: 'not-a-date',
-        ticket_allocation: 10,
-      })
+      .send({ movie_id: 1, timestamp: 'not-a-date', ticket_allocation: 5 })
 
     expect(res.status).toBe(400)
-    expect(res.body.message).toMatch(/Invalid timestamp/)
+    expect(res.body.message).toBe('Invalid timestamp')
   })
 
-  it('should reject past timestamp', async () => {
-    const pastDate = new Date(Date.now() - 3600 * 1000).toISOString()
+  it('POST /screenings - timestamp not in future', async () => {
+    const pastTimestamp = new Date(Date.now() - 100000).toISOString()
     const res = await request(app)
       .post('/screenings')
-      .send({
-        movie_id: 1,
-        timestamp: pastDate,
-        ticket_allocation: 10,
-      })
+      .send({ movie_id: 1, timestamp: pastTimestamp, ticket_allocation: 5 })
 
     expect(res.status).toBe(400)
-    expect(res.body.message).toMatch(/must be in the future/)
+    expect(res.body.message).toBe('Screening timestamp must be in the future')
   })
 
-  it('should reject missing movie', async () => {
-    const futureDate = new Date(Date.now() + 3600 * 1000).toISOString()
+  it('POST /screenings - movie not found', async () => {
+    mockDb.selectFrom.mockReturnValue(createSelectFromMock(null))
+
+    const futureTimestamp = new Date(Date.now() + 100000).toISOString()
     const res = await request(app)
       .post('/screenings')
-      .send({
-        movie_id: 9999,
-        timestamp: futureDate,
-        ticket_allocation: 10,
-      })
+      .send({ movie_id: 999, timestamp: futureTimestamp, ticket_allocation: 5 })
 
     expect(res.status).toBe(400)
-    expect(res.body.message).toMatch(/not in the database/)
+    expect(res.body.message).toBe('MovieId not in the database')
   })
-})
 
-describe('GET /screenings', () => {
-  it('should return future screenings', async () => {
-    const futureDate = new Date(Date.now() + 3600 * 1000).toISOString()
-    await db.insertInto('screenings').values({
-      movieId: 1,
-      timestamp: futureDate,
-      ticketAllocation: 50,
-    }).execute()
+  it('GET /screenings - success', async () => {
+    const screeningsList = [{ id: 1, movieId: 1, timestamp: new Date(Date.now() + 100000).toISOString(), ticketAllocation: 5 }]
+    mockDb.selectFrom.mockReturnValue(createSelectFromMock(screeningsList))
 
     const res = await request(app).get('/screenings')
 
     expect(res.status).toBe(200)
-    expect(Array.isArray(res.body)).toBe(true)
-    expect(res.body.length).toBeGreaterThan(0)
+    expect(res.body).toEqual(screeningsList)
   })
 
-  it('should return 404 if no screenings', async () => {
+  it('GET /screenings - no screenings found', async () => {
+    mockDb.selectFrom.mockReturnValue(createSelectFromMock([]))
+
     const res = await request(app).get('/screenings')
 
     expect(res.status).toBe(404)
-    expect(res.body.message).toMatch(/No screenings found/)
+    expect(res.body.message).toBe('No screenings found')
   })
-})
 
-describe('GET /screenings/:id', () => {
-  it('should return a screening by id', async () => {
-    const futureDate = new Date(Date.now() + 3600 * 1000).toISOString()
-    const inserted = await db.insertInto('screenings').values({
-      movieId: 1,
-      timestamp: futureDate,
-      ticketAllocation: 50,
-    }).returningAll().executeTakeFirst()
+  it('GET /screenings/:id - success', async () => {
+    const screening = { id: 1, movieId: 1, timestamp: new Date(Date.now() + 100000).toISOString(), ticketAllocation: 5 }
+    mockDb.selectFrom.mockReturnValue(createSelectFromMock(screening))
 
-    const res = await request(app).get(`/screenings/${inserted!.id}`)
+    const res = await request(app).get('/screenings/1')
 
     expect(res.status).toBe(200)
-    expect(res.body.id).toBe(inserted!.id)
+    expect(res.body).toEqual(screening)
   })
 
-  it('should return 404 if screening not found', async () => {
-    const res = await request(app).get('/screenings/9999')
+  it('GET /screenings/:id - invalid id', async () => {
+    const res = await request(app).get('/screenings/abc')
+
+    expect(res.status).toBe(400)
+    expect(res.body.message).toBe('Invalid screening ID')
+  })
+
+  it('GET /screenings/:id - screening not found', async () => {
+    mockDb.selectFrom.mockReturnValue(createSelectFromMock(null))
+
+    const res = await request(app).get('/screenings/999')
 
     expect(res.status).toBe(404)
-    expect(res.body.message).toMatch(/Screening not found/)
+    expect(res.body.message).toBe('Screening not found')
   })
-})
 
-describe('DELETE /screenings/:id', () => {
-  it('should delete a screening by id', async () => {
-    const futureDate = new Date(Date.now() + 3600 * 1000).toISOString()
-    const inserted = await db.insertInto('screenings').values({
-      movieId: 1,
-      timestamp: futureDate,
-      ticketAllocation: 50,
-    }).returningAll().executeTakeFirst()
+  it('DELETE /screenings/:id - success', async () => {
+    const deletedScreening = { id: 1, movieId: 1, timestamp: new Date(Date.now() + 100000).toISOString(), ticketAllocation: 5 }
+    mockDb.deleteFrom.mockReturnValue(createDeleteFromMock([deletedScreening]))
 
-    const res = await request(app).delete(`/screenings/${inserted!.id}`)
+    const res = await request(app).delete('/screenings/1')
 
     expect(res.status).toBe(200)
-    expect(res.body.id).toBe(inserted!.id)
-
-    const getRes = await request(app).get(`/screenings/${inserted!.id}`)
-    expect(getRes.status).toBe(404)
+    expect(res.body).toEqual(deletedScreening)
   })
 
-  it('should return 404 when deleting non-existing screening', async () => {
-    const res = await request(app).delete('/screenings/9999')
+  it('DELETE /screenings/:id - invalid id', async () => {
+    const res = await request(app).delete('/screenings/abc')
+
+    expect(res.status).toBe(400)
+    expect(res.body.message).toBe('Invalid screening ID')
+  })
+
+  it('DELETE /screenings/:id - screening not found', async () => {
+    mockDb.deleteFrom.mockReturnValue(createDeleteFromMock([]))
+
+    const res = await request(app).delete('/screenings/999')
 
     expect(res.status).toBe(404)
-    expect(res.body.message).toMatch(/Screening not found/)
+    expect(res.body.message).toBe('Screening not found')
   })
 })

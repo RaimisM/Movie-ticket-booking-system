@@ -1,11 +1,10 @@
 import type { Insertable, Selectable } from 'kysely'
 import { Database } from '@/database'
-import { keys } from './schema'
-import { Screening } from '../../database/types'
+import { Screenings } from '../../database/types'
 
-const TABLE = 'Screening'
-type RowInsert = Insertable<Screening>
-type RowSelectable = Selectable<Screening>
+const TABLE = 'screenings'
+type RowInsert = Insertable<Screenings>
+type RowSelectable = Selectable<Screenings>
 
 export default (db: Database) => ({
   // create screening
@@ -13,31 +12,34 @@ export default (db: Database) => ({
     const screening = await db
       .insertInto(TABLE)
       .values(record)
-      .returning(keys)
+      .returningAll()
       .execute()
 
     return screening
   },
+
   // get screening by Id
   async getScreeningById(id: number): Promise<RowSelectable | undefined> {
-    const screening = db
+    const screening = await db
       .selectFrom(TABLE)
-      .select(keys)
+      .selectAll()
       .where('id', '=', id)
       .executeTakeFirst()
 
     return screening
   },
+
   // get all screenings
-  async getScreenings(): Promise<RowSelectable[] | undefined> {
-    return db.selectFrom(TABLE).select(keys).execute()
+  async getScreenings(): Promise<RowSelectable[]> {
+    return db.selectFrom(TABLE).selectAll().execute()
   },
+
   // delete screening
   async delete(id: number): Promise<RowSelectable | undefined> {
     return db
       .deleteFrom(TABLE)
       .where('id', '=', id)
-      .returning(keys)
+      .returningAll()
       .executeTakeFirst()
   },
 })
