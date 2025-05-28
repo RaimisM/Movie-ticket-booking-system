@@ -7,21 +7,23 @@ import { type Database } from '@/database'
 export default function screenings(db: Database) {
   const router = Router()
 
+  // Validate input keys as snake_case, transform to camelCase for internal use
   const screeningSchema = z.object({
-    movieId: z.number(),
-    date: z.string().refine(date => !Number.isNaN(Date.parse(date)), { message: 'Invalid date' }),
-    time: z.string().regex(/^\d{2}:\d{2}:\d{2}$/, 'Invalid time format'),
-    capacity: z.number().int().positive(),
-  })
+    movie_id: z.number(),
+    timestamp: z.string().refine(date => !Number.isNaN(Date.parse(date)), { message: 'Invalid timestamp' }),
+    ticket_allocation: z.number().int().positive(),
+  }).transform(({ movie_id, timestamp, ticket_allocation }) => ({
+    movieId: movie_id,
+    timestamp,
+    ticketAllocation: ticket_allocation,
+  }))
 
   const isFutureDate = (dateStr: string) => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const date = new Date(dateStr)
-    return date > today
+    const now = new Date()
+    return new Date(dateStr) > now
   }
 
-  // POST
+  // POST /screenings
   router.post('/', async (req: Request, res: Response) => {
     if (Array.isArray(req.body)) {
       throw new BadRequest('Expected a single screening object, not an array')
@@ -32,12 +34,13 @@ export default function screenings(db: Database) {
       throw new BadRequest(parsed.error.message)
     }
 
-    const { movieId, date, time, capacity } = parsed.data
+    const { movieId, timestamp, ticketAllocation } = parsed.data
 
-    if (!isFutureDate(date)) {
-      throw new BadRequest('Screening date must be in the future')
+    if (!isFutureDate(timestamp)) {
+      throw new BadRequest('Screening timestamp must be in the future')
     }
 
+    // Check movie exists
     const movieExists = await db.selectFrom('movies')
       .select('id')
       .where('id', '=', movieId)
@@ -47,33 +50,32 @@ export default function screenings(db: Database) {
       throw new BadRequest('MovieId not in the database')
     }
 
-    const screening = await db.insertInto('screening')
-      .values({ movieId, date, time, capacity })
+    const screening = await db.insertInto('screenings')
+      .values({ movieId, timestamp, ticketAllocation })
       .returningAll()
       .execute()
 
     res.status(201).json(screening)
   })
 
-  // GET
+  // GET /screenings
   router.get('/', async (_req: Request, res: Response) => {
-    const now = new Date().toISOString()
-
-    const futureScreenings = await db.selectFrom('screening')
+    const screeningsList = await db.selectFrom('screenings')
       .selectAll()
-      .where('date', '>', now.slice(0, 10))
+      .where('timestamp', '>', new Date().toISOString())
       .execute()
 
-    if (futureScreenings.length === 0) {
+    if (screeningsList.length === 0) {
       throw new NotFound('No screenings found')
     }
 
-    res.json(screenings)
+    res.json(screeningsList)
   })
 
+  // GET /screenings/:id
   router.get('/:id', async (req: Request, res: Response) => {
     const id = Number(req.params.id)
-    const screening = await db.selectFrom('screening')
+    const screening = await db.selectFrom('screenings')
       .selectAll()
       .where('id', '=', id)
       .execute()
@@ -85,11 +87,11 @@ export default function screenings(db: Database) {
     res.json(screening[0])
   })
 
-  // DELETE 
+  // DELETE /screenings/:id
   router.delete('/:id', async (req: Request, res: Response) => {
     const id = Number(req.params.id)
 
-    const deleted = await db.deleteFrom('screening')
+    const deleted = await db.deleteFrom('screenings')
       .where('id', '=', id)
       .returningAll()
       .execute()

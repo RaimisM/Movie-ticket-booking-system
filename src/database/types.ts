@@ -27,12 +27,11 @@ export interface Ratings {
   votes: number
 }
 
-export interface Screening {
+export interface Screenings {
   id: Generated<number>
   movieId: number
-  date: string
-  time: string
-  capacity: number
+  timestamp: string
+  ticketAllocation: number
 }
 
 export interface Stars {
@@ -42,7 +41,7 @@ export interface Stars {
 
 export interface User {
   id: Generated<number>
-  userName: string
+  username: string
   role: 'user' | 'admin'
 }
 
@@ -51,7 +50,7 @@ export interface DB {
   movies: Movies
   people: People
   ratings: Ratings
-  screening: Screening
+  screenings: Screenings
   stars: Stars
   user: User
 }
