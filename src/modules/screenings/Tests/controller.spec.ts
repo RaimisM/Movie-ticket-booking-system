@@ -15,7 +15,11 @@ function createSelectFromMock(returnValue: any) {
     selectAll: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
     execute: vi.fn().mockResolvedValue(returnValue),
-    executeTakeFirst: vi.fn().mockResolvedValue(Array.isArray(returnValue) ? returnValue[0] : returnValue),
+    executeTakeFirst: vi
+      .fn()
+      .mockResolvedValue(
+        Array.isArray(returnValue) ? returnValue[0] : returnValue
+      ),
   }
 }
 function createInsertIntoMock(returnValue: any) {
@@ -58,11 +62,17 @@ describe('screenings controller', () => {
     const ticketAllocation = 10
 
     mockDb.selectFrom.mockReturnValue(createSelectFromMock({ id: movieId }))
-    mockDb.insertInto.mockReturnValue(createInsertIntoMock([{ id: 1, movieId, timestamp, ticketAllocation }]))
+    mockDb.insertInto.mockReturnValue(
+      createInsertIntoMock([{ id: 1, movieId, timestamp, ticketAllocation }])
+    )
 
     const res = await request(app)
       .post('/screenings')
-      .send({ movie_id: movieId, timestamp, ticket_allocation: ticketAllocation })
+      .send({
+        movie_id: movieId,
+        timestamp,
+        ticket_allocation: ticketAllocation,
+      })
 
     expect(res.status).toBe(201)
     expect(res.body).toEqual([{ id: 1, movieId, timestamp, ticketAllocation }])
@@ -71,10 +81,18 @@ describe('screenings controller', () => {
   it('POST /screenings - rejects array body', async () => {
     const res = await request(app)
       .post('/screenings')
-      .send([{ movie_id: 1, timestamp: new Date().toISOString(), ticket_allocation: 5 }])
+      .send([
+        {
+          movie_id: 1,
+          timestamp: new Date().toISOString(),
+          ticket_allocation: 5,
+        },
+      ])
 
     expect(res.status).toBe(400)
-    expect(res.body.message).toBe('Expected a single screening object, not an array')
+    expect(res.body.message).toBe(
+      'Expected a single screening object, not an array'
+    )
   })
 
   it('POST /screenings - invalid timestamp', async () => {
@@ -109,7 +127,14 @@ describe('screenings controller', () => {
   })
 
   it('GET /screenings - success', async () => {
-    const screeningsList = [{ id: 1, movieId: 1, timestamp: new Date(Date.now() + 100000).toISOString(), ticketAllocation: 5 }]
+    const screeningsList = [
+      {
+        id: 1,
+        movieId: 1,
+        timestamp: new Date(Date.now() + 100000).toISOString(),
+        ticketAllocation: 5,
+      },
+    ]
     mockDb.selectFrom.mockReturnValue(createSelectFromMock(screeningsList))
 
     const res = await request(app).get('/screenings')
@@ -128,7 +153,12 @@ describe('screenings controller', () => {
   })
 
   it('GET /screenings/:id - success', async () => {
-    const screening = { id: 1, movieId: 1, timestamp: new Date(Date.now() + 100000).toISOString(), ticketAllocation: 5 }
+    const screening = {
+      id: 1,
+      movieId: 1,
+      timestamp: new Date(Date.now() + 100000).toISOString(),
+      ticketAllocation: 5,
+    }
     mockDb.selectFrom.mockReturnValue(createSelectFromMock(screening))
 
     const res = await request(app).get('/screenings/1')
@@ -154,7 +184,12 @@ describe('screenings controller', () => {
   })
 
   it('DELETE /screenings/:id - success', async () => {
-    const deletedScreening = { id: 1, movieId: 1, timestamp: new Date(Date.now() + 100000).toISOString(), ticketAllocation: 5 }
+    const deletedScreening = {
+      id: 1,
+      movieId: 1,
+      timestamp: new Date(Date.now() + 100000).toISOString(),
+      ticketAllocation: 5,
+    }
     mockDb.deleteFrom.mockReturnValue(createDeleteFromMock([deletedScreening]))
 
     const res = await request(app).delete('/screenings/1')

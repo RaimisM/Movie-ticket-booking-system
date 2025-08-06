@@ -2,13 +2,13 @@ import type { Insertable } from 'kysely'
 import { sql } from 'kysely'
 import createDatabase from '@/database'
 import repository from '../repository'
-import type { Screenings } from '../../../database/types'
+import type { Screening } from '../../../database/types'
 
 describe('Screenings Repository', () => {
   let db: ReturnType<typeof createDatabase>
   let repo: ReturnType<typeof repository>
 
-  const testScreening: Insertable<Screenings> = {
+  const testScreening: Insertable<Screening> = {
     movieId: 1,
     timestamp: new Date().toISOString(),
     ticketAllocation: 100,
@@ -18,6 +18,8 @@ describe('Screenings Repository', () => {
     db = createDatabase(':memory:')
     repo = repository(db)
 
+    // Table names and column names in DB remain snake_case
+    // Typescript uses camelCase via Kysely mapping
     await sql`
       CREATE TABLE screenings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

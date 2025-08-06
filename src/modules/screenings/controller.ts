@@ -1,121 +1,149 @@
-import { Router, Request, Response, NextFunction } from 'express'
-import { z } from 'zod'
-import BadRequest from '@/utils/errors/BadRequest'
-import NotFound from '@/utils/errors/NotFound'
-import { type Database } from '@/database'
+import { Router } from 'express'
+import type { Database } from '@/database'
+import { jsonRoute, unsupportedRoute } from '@/utils/middleware'
 
-function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    fn(req, res, next).catch(next)
-  }
-}
-
-export default function screenings(db: Database) {
+export default (db: Database) => {
   const router = Router()
 
-  const screeningSchema = z.object({
-    movie_id: z.number(),
-    timestamp: z.string().refine(date => !Number.isNaN(Date.parse(date)), { message: 'Invalid timestamp' }),
-    ticket_allocation: z.number().int().positive(),
-  }).transform(({ movie_id, timestamp, ticket_allocation }) => ({
-    movieId: movie_id,
-    timestamp,
-    ticketAllocation: ticket_allocation,
-  }))
-
-  const isFutureDate = (dateStr: string) => {
-    const now = new Date()
-    return new Date(dateStr) > now
+  // --- Utility: Validate numeric ID ---
+  function parseId(id: string) {
+    const parsed = Number(id)
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null
   }
 
-  router.post('/', asyncHandler(async (req: Request, res: Response) => {
-    if (Array.isArray(req.body)) {
-      throw new BadRequest('Expected a single screening object, not an array')
-    }
+  // --- POST /screenings ---
+  router
+    .route('/')
+    .post(
+      jsonRoute(async (req, res) => {
+        const { body } = req
 
-    const parsed = screeningSchema.safeParse(req.body)
-    if (!parsed.success) {
-      throw new BadRequest(parsed.error.errors[0].message)
-    }
+        // Test expects 400 if array body
+        if (Array.isArray(body)) {
+          res
+            .status(400)
+            .json({
+              message: 'Expected a single screening object, not an array',
+            })
+          return
+        }
 
-    const { movieId, timestamp, ticketAllocation } = parsed.data
+        // Destructure and alias to camelCase for TS/ESLint
+        const {
+          movie_id: movieId,
+          timestamp,
+          ticket_allocation: ticketAllocation,
+        } = body
 
-    if (!isFutureDate(timestamp)) {
-      throw new BadRequest('Screening timestamp must be in the future')
-    }
+        // Validate timestamp
+        const date = new Date(timestamp)
+        if (Number.isNaN(date.getTime())) {
+          res.status(400).json({ message: 'Invalid timestamp' })
+          return
+        }
 
-    const movieExists = await db.selectFrom('movies')
-      .select('id')
-      .where('id', '=', movieId)
-      .executeTakeFirst()
+        if (date <= new Date()) {
+          res
+            .status(400)
+            .json({ message: 'Screening timestamp must be in the future' })
+          return
+        }
 
-    if (!movieExists) {
-      throw new BadRequest('MovieId not in the database')
-    }
+        // Validate that movie exists
+        const movieExists = await db
+          .selectFrom('movies')
+          .selectAll()
+          .where('id', '=', movieId)
+          .executeTakeFirst()
 
-    const screening = await db.insertInto('screenings')
-      .values({ movieId, timestamp, ticketAllocation })
-      .returningAll()
-      .execute()
+        if (!movieExists) {
+          res.status(400).json({ message: 'MovieId not in the database' })
+          return
+        }
 
-    res.status(201).json(screening)
-  }))
+        // Insert new screening
+        const inserted = await db
+          .insertInto('screenings')
+          .values({
+            movieId,
+            timestamp: date.toISOString(),
+            ticketAllocation,
+          })
+          .returningAll()
+          .execute()
 
-  // GET /screenings - get all future screenings
-  router.get('/', asyncHandler(async (_req: Request, res: Response) => {
-    const screeningsList = await db.selectFrom('screenings')
-      .selectAll()
-      .where('timestamp', '>', new Date().toISOString())
-      .execute()
+        res.status(201).json(inserted)
+      })
+    )
 
-    if (screeningsList.length === 0) {
-      throw new NotFound('No screenings found')
-    }
+    // --- GET /screenings ---
+    .get(
+      jsonRoute(async (_req, res) => {
+        const screenings = await db
+          .selectFrom('screenings')
+          .selectAll()
+          .execute()
 
-    res.json(screeningsList)
-  }))
+        if (!screenings || screenings.length === 0) {
+          res.status(404).json({ message: 'No screenings found' })
+          return
+        }
 
-  // GET /screenings/:id - get single screening by id
-  router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
-    const idSchema = z.coerce.number().int().positive()
-    const parsedId = idSchema.safeParse(req.params.id)
+        res.status(200).json(screenings)
+      })
+    )
+    .patch(unsupportedRoute)
+    .put(unsupportedRoute)
+    .delete(unsupportedRoute)
 
-    if (!parsedId.success) {
-      throw new BadRequest('Invalid screening ID')
-    }
+  // --- /screenings/:id routes ---
+  router
+    .route('/:id')
+    .get(
+      jsonRoute(async (req, res) => {
+        const id = parseId(req.params.id)
+        if (!id) {
+          res.status(400).json({ message: 'Invalid screening ID' })
+          return
+        }
 
-    const screening = await db.selectFrom('screenings')
-      .selectAll()
-      .where('id', '=', parsedId.data)
-      .executeTakeFirst()
+        const screening = await db
+          .selectFrom('screenings')
+          .selectAll()
+          .where('id', '=', id)
+          .executeTakeFirst()
 
-    if (!screening) {
-      throw new NotFound('Screening not found')
-    }
+        if (!screening) {
+          res.status(404).json({ message: 'Screening not found' })
+          return
+        }
 
-    res.json(screening)
-  }))
+        res.status(200).json(screening)
+      })
+    )
+    .delete(
+      jsonRoute(async (req, res) => {
+        const id = parseId(req.params.id)
+        if (!id) {
+          res.status(400).json({ message: 'Invalid screening ID' })
+          return
+        }
 
-  // DELETE /screenings/:id - delete screening by id
-  router.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
-    const idSchema = z.coerce.number().int().positive()
-    const parsedId = idSchema.safeParse(req.params.id)
+        const deleted = await db
+          .deleteFrom('screenings')
+          .where('id', '=', id)
+          .returningAll()
+          .execute()
 
-    if (!parsedId.success) {
-      throw new BadRequest('Invalid screening ID')
-    }
+        if (!deleted || deleted.length === 0) {
+          res.status(404).json({ message: 'Screening not found' })
+          return
+        }
 
-    const deleted = await db.deleteFrom('screenings')
-      .where('id', '=', parsedId.data)
-      .returningAll()
-      .execute()
-
-    if (deleted.length === 0) {
-      throw new NotFound('Screening not found')
-    }
-
-    res.json(deleted[0])
-  }))
+        // Tests expect the deleted record directly, not in an array
+        res.status(200).json(deleted[0])
+      })
+    )
 
   return router
 }

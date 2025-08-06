@@ -38,5 +38,4 @@ const jsonErrors: ErrorRequestHandler = (error, _req, res, _next) => {
   })
 }
 
-
 export default jsonErrors

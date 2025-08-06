@@ -1,45 +1,46 @@
 import type { Insertable, Selectable } from 'kysely'
-import { Database } from '@/database'
-import { Screenings } from '../../database/types'
+import type { Database } from '@/database'
+import type { Screening } from '../../database/types'
 
 const TABLE = 'screenings'
-type RowInsert = Insertable<Screenings>
-type RowSelectable = Selectable<Screenings>
+type RowInsert = Insertable<Screening>
+type RowSelectable = Selectable<Screening>
 
 export default (db: Database) => ({
-  // create screening
-  async createScreening(record: RowInsert | RowInsert[]) {
+  // Create screening(s)
+  async createScreening(
+    record: RowInsert | RowInsert[]
+  ): Promise<RowSelectable[]> {
     const screening = await db
       .insertInto(TABLE)
       .values(record)
-      .returningAll()
+      .returningAll() // return all columns for test match
       .execute()
-
     return screening
   },
 
-  // get screening by Id
+  // Get screening by ID
   async getScreeningById(id: number): Promise<RowSelectable | undefined> {
     const screening = await db
       .selectFrom(TABLE)
       .selectAll()
       .where('id', '=', id)
       .executeTakeFirst()
-
     return screening
   },
 
-  // get all screenings
+  // Get all screenings
   async getScreenings(): Promise<RowSelectable[]> {
     return db.selectFrom(TABLE).selectAll().execute()
   },
 
-  // delete screening
+  // Delete screening and return deleted row
   async delete(id: number): Promise<RowSelectable | undefined> {
-    return db
+    const deleted = await db
       .deleteFrom(TABLE)
       .where('id', '=', id)
       .returningAll()
       .executeTakeFirst()
+    return deleted
   },
 })

@@ -2,9 +2,9 @@ import createTestDatabase from '@tests/utils/createTestDatabase'
 import { createFor } from '@tests/utils/records'
 import buildRepository from '../repository'
 
-const db = await createTestDatabase()
-const repository = buildRepository(db)
-const createMovies = createFor(db, 'movies')
+const testDb = await createTestDatabase()
+const repository = buildRepository(testDb.db)
+const createMovies = createFor(testDb.db, 'movies')
 
 describe('findAll', () => {
   it('should return existing movies', async () => {

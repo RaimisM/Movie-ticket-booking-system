@@ -20,7 +20,9 @@ export const today = daysFromNow(0)
 export const pastDate = daysFromNow(-2)
 export const futureDate = daysFromNow(2)
 
-export function screeningMatcher(input: Partial<Screening> = {}): Record<keyof Screening, any> {
+export function screeningMatcher(
+  input: Partial<Screening> = {}
+): Record<keyof Screening, any> {
   return {
     id: input.id ?? expect.any(Number),
     movie_id: input.movie_id ?? expect.any(Number),
