@@ -1,12 +1,12 @@
 import type { Insertable, Selectable, Updateable } from 'kysely'
 import type { Database } from '@/database'
-import type { User } from '@/database/types'
+import type { Users } from '@/database/types'
 import { keys } from './schema'
 
 const TABLE = 'users'
-type RowInsert = Insertable<User>
-type RowSelectable = Selectable<User>
-type RowUpdate = Updateable<User>
+type RowInsert = Insertable<Users>
+type RowSelectable = Selectable<Users>
+type RowUpdate = Updateable<Users>
 
 export default (db: Database) => ({
   async createUser(record: RowInsert | RowInsert[]): Promise<RowSelectable[]> {
