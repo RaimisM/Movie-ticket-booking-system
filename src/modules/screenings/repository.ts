@@ -1,10 +1,10 @@
 import type { Insertable, Selectable } from 'kysely'
 import type { Database } from '@/database'
-import type { Screening } from '../../database/types'
+import type { Screenings } from '../../database/types'
 
 const TABLE = 'screenings'
-type RowInsert = Insertable<Screening>
-type RowSelectable = Selectable<Screening>
+type RowInsert = Insertable<Screenings>
+type RowSelectable = Selectable<Screenings>
 
 export default (db: Database) => ({
   // Create screening(s)
@@ -14,7 +14,7 @@ export default (db: Database) => ({
     const screening = await db
       .insertInto(TABLE)
       .values(record)
-      .returningAll() // return all columns for test match
+      .returningAll()
       .execute()
     return screening
   },

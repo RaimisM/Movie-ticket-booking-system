@@ -1,10 +1,10 @@
 import { z } from 'zod'
-import { Screening } from '@/database'
+import { Screenings } from '@/database'
 
 const schema = z.object({
   id: z.coerce.number().int().positive(),
   movieId: z.number().int().positive(),
-  timestamp: z.string(), // Combined date/time field
+  timestamp: z.string(),
   ticketAllocation: z.number().int().positive().max(100),
 })
 
@@ -20,7 +20,6 @@ export const parseInsertable = (record: unknown) => insertable.parse(record)
 export const parseSelectable = (record: unknown) => schema.parse(record)
 export const parseUpdatable = (record: unknown) => updatable.parse(record)
 
-// Now the keys will properly match the Screening type
-export const keys: (keyof Screening)[] = Object.keys(
+export const keys: (keyof Screenings)[] = Object.keys(
   schema.shape
 ) as (keyof z.infer<typeof schema>)[]

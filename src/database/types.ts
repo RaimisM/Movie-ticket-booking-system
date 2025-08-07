@@ -39,6 +39,13 @@ export interface Stars {
   personId: number;
 }
 
+export interface Tickets {
+  createdAt: Generated<string>;
+  id: Generated<number>;
+  screeningId: number;
+  userId: number;
+}
+
 export interface Users {
   id: Generated<number>;
   role: string;
@@ -52,5 +59,6 @@ export interface DB {
   ratings: Ratings;
   screenings: Screenings;
   stars: Stars;
+  tickets: Tickets;
   users: Users;
 }

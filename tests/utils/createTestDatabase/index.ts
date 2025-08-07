@@ -25,6 +25,7 @@ export default async () => {
     plugins: [new CamelCasePlugin()],
   });
 
+  // Run all migrations on the test DB before returning it
   const latest = async () => {
     const { results, error } = await migrateToLatest(provider, db);
 
@@ -40,12 +41,12 @@ export default async () => {
     }
   };
 
+  await latest(); // Run migrations
+
   // Stub rollback because provider doesn't support it yet
   const rollback = async () => {
     logWarn('Rollback is not implemented for ModuleMigrationProvider');
   };
-
-  await latest(); // initial migration
 
   return {
     db,

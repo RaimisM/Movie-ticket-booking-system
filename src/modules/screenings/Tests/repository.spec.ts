@@ -2,13 +2,13 @@ import type { Insertable } from 'kysely'
 import { sql } from 'kysely'
 import createDatabase from '@/database'
 import repository from '../repository'
-import type { Screening } from '../../../database/types'
+import type { Screenings } from '../../../database/types'  // plural
 
 describe('Screenings Repository', () => {
   let db: ReturnType<typeof createDatabase>
   let repo: ReturnType<typeof repository>
 
-  const testScreening: Insertable<Screening> = {
+  const testScreening: Insertable<Screenings> = {
     movieId: 1,
     timestamp: new Date().toISOString(),
     ticketAllocation: 100,
