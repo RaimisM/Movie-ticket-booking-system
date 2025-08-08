@@ -2,7 +2,7 @@ import type { Insertable } from 'kysely'
 import { sql } from 'kysely'
 import createDatabase from '@/database'
 import repository from '../repository'
-import type { Screenings } from '../../../database/types'  // plural
+import type { Screenings } from '../../../database/types'
 
 describe('Screenings Repository', () => {
   let db: ReturnType<typeof createDatabase>
@@ -18,8 +18,6 @@ describe('Screenings Repository', () => {
     db = createDatabase(':memory:')
     repo = repository(db)
 
-    // Table names and column names in DB remain snake_case
-    // Typescript uses camelCase via Kysely mapping
     await sql`
       CREATE TABLE screenings (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

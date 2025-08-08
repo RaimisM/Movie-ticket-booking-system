@@ -2,14 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Database } from '@/database'
 import repository from '../repository'
 
-// Mock database
 const mockDb = {
   insertInto: vi.fn(),
   selectFrom: vi.fn(),
   deleteFrom: vi.fn(),
 } as unknown as Database
 
-// Mock query builder methods
 const mockQueryBuilder = {
   values: vi.fn().mockReturnThis(),
   returningAll: vi.fn().mockReturnThis(),
@@ -34,7 +32,7 @@ describe('Repository', () => {
     it('should create a single ticket with valid data', async () => {
       const ticketData = { userId: 1, screeningId: 123 }
       const expectedResult = [{ id: 1, ...ticketData }]
-      
+
       mockQueryBuilder.execute.mockResolvedValue(expectedResult)
 
       const result = await repo.createTicket(ticketData)
@@ -47,13 +45,13 @@ describe('Repository', () => {
     it('should create multiple tickets with bulk insert', async () => {
       const ticketsData = [
         { userId: 1, screeningId: 123 },
-        { userId: 2, screeningId: 456 }
+        { userId: 2, screeningId: 456 },
       ]
       const expectedResult = [
         { id: 1, ...ticketsData[0] },
-        { id: 2, ...ticketsData[1] }
+        { id: 2, ...ticketsData[1] },
       ]
-      
+
       mockQueryBuilder.execute.mockResolvedValue(expectedResult)
 
       const result = await repo.createTicket(ticketsData)
@@ -65,7 +63,9 @@ describe('Repository', () => {
     it('should throw error for invalid ticket data', async () => {
       const invalidData = { userId: -1, screeningId: 123 }
 
-      await expect(repo.createTicket(invalidData)).rejects.toThrow('Invalid ticket data')
+      await expect(repo.createTicket(invalidData)).rejects.toThrow(
+        'Invalid ticket data'
+      )
     })
   })
 
@@ -73,7 +73,7 @@ describe('Repository', () => {
     it('should get ticket by valid ID', async () => {
       const ticketId = 1
       const expectedResult = { id: 1, userId: 1, screeningId: 123 }
-      
+
       mockQueryBuilder.executeTakeFirst.mockResolvedValue(expectedResult)
 
       const result = await repo.getTicketById(ticketId)
@@ -86,7 +86,9 @@ describe('Repository', () => {
     it('should throw error for invalid ticket ID', async () => {
       const invalidId = -1
 
-      await expect(repo.getTicketById(invalidId)).rejects.toThrow('Invalid ticket ID')
+      await expect(repo.getTicketById(invalidId)).rejects.toThrow(
+        'Invalid ticket ID'
+      )
     })
   })
 
@@ -95,9 +97,9 @@ describe('Repository', () => {
       const userId = 1
       const expectedResult = [
         { id: 1, userId: 1, screeningId: 123 },
-        { id: 2, userId: 1, screeningId: 456 }
+        { id: 2, userId: 1, screeningId: 456 },
       ]
-      
+
       mockQueryBuilder.execute.mockResolvedValue(expectedResult)
 
       const result = await repo.getTicketsByUserId(userId)
@@ -109,7 +111,9 @@ describe('Repository', () => {
     it('should throw error for invalid user ID', async () => {
       const invalidUserId = 0
 
-      await expect(repo.getTicketsByUserId(invalidUserId)).rejects.toThrow('Invalid user ID')
+      await expect(repo.getTicketsByUserId(invalidUserId)).rejects.toThrow(
+        'Invalid user ID'
+      )
     })
   })
 
@@ -117,7 +121,7 @@ describe('Repository', () => {
     it('should delete ticket by valid ID', async () => {
       const ticketId = 1
       const expectedResult = { id: 1, userId: 1, screeningId: 123 }
-      
+
       mockQueryBuilder.executeTakeFirst.mockResolvedValue(expectedResult)
 
       const result = await repo.deleteTicket(ticketId)
@@ -130,7 +134,9 @@ describe('Repository', () => {
     it('should throw error for invalid delete ID', async () => {
       const invalidId = -5
 
-      await expect(repo.deleteTicket(invalidId)).rejects.toThrow('Invalid ticket ID')
+      await expect(repo.deleteTicket(invalidId)).rejects.toThrow(
+        'Invalid ticket ID'
+      )
     })
   })
 
@@ -138,19 +144,25 @@ describe('Repository', () => {
     it('should count tickets by valid screening ID', async () => {
       const screeningId = 123
       const mockCountResult = { count: '5' }
-      
+
       mockQueryBuilder.executeTakeFirst.mockResolvedValue(mockCountResult)
 
       const result = await repo.countTicketsByScreeningId(screeningId)
 
-      expect(mockQueryBuilder.where).toHaveBeenCalledWith('screeningId', '=', screeningId)
+      expect(mockQueryBuilder.where).toHaveBeenCalledWith(
+        'screeningId',
+        '=',
+        screeningId
+      )
       expect(result).toBe(5)
     })
 
     it('should throw error for invalid screening ID', async () => {
       const invalidScreeningId = 0
 
-      await expect(repo.countTicketsByScreeningId(invalidScreeningId)).rejects.toThrow('Invalid screening ID')
+      await expect(
+        repo.countTicketsByScreeningId(invalidScreeningId)
+      ).rejects.toThrow('Invalid screening ID')
     })
   })
 })

@@ -1,17 +1,14 @@
 import { z } from 'zod'
-import { Screenings } from '@/database'
+import type { Screenings } from '@/database'
 
 const schema = z.object({
   id: z.coerce.number().int().positive(),
   movieId: z.number().int().positive(),
-  timestamp: z.string(),
+  timestamp: z.string().min(1, 'timestamp is required'),
   ticketAllocation: z.number().int().positive().max(100),
 })
 
-const insertable = schema.omit({
-  id: true,
-})
-
+const insertable = schema.omit({ id: true })
 const updatable = insertable.partial()
 
 export const parse = (record: unknown) => schema.parse(record)

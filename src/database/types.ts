@@ -10,14 +10,14 @@ export interface Directors {
 }
 
 export interface Movies {
-  id: number | null;
+  id: Generated<number>;
   title: string;
   year: number | null;
 }
 
 export interface People {
   birth: number | null;
-  id: number | null;
+  id: Generated<number>;
   name: string;
 }
 

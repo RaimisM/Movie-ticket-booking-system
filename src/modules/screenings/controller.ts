@@ -1,47 +1,43 @@
 import { Router } from 'express'
 import type { Database } from '@/database'
 import { jsonRoute, unsupportedRoute } from '@/utils/middleware'
+import buildRepository from './repository'
+import {
+  parseId,
+  parseInsertable,
+} from './schema'
 
 export default (db: Database) => {
+  const repo = buildRepository(db)
   const router = Router()
 
-  // --- Utility: Validate numeric ID ---
-  function parseId(id: string) {
-    const parsed = Number(id)
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : null
-  }
-
-  // --- POST /screenings ---
   router
     .route('/')
     .post(
       jsonRoute(async (req, res) => {
-        const { body } = req
-
-        // Test expects 400 if array body
-        if (Array.isArray(body)) {
-          res
-            .status(400)
-            .json({
-              message: 'Expected a single screening object, not an array',
-            })
+        if (Array.isArray(req.body)) {
+          res.status(400).json({
+            message: 'Expected a single screening object, not an array',
+          })
           return
         }
 
-        // Destructure and alias to camelCase for TS/ESLint
-        const {
-          movie_id: movieId,
-          timestamp,
-          ticket_allocation: ticketAllocation,
-        } = body
+        let data
+        try {
+          data = parseInsertable(req.body)
+        } catch (err) {
+          res.status(400).json({
+            message: 'Invalid screening data',
+            errors: (err as any).errors ?? err,
+          })
+          return
+        }
 
-        // Validate timestamp
-        const date = new Date(timestamp)
+        const date = new Date(data.timestamp)
         if (Number.isNaN(date.getTime())) {
           res.status(400).json({ message: 'Invalid timestamp' })
           return
         }
-
         if (date <= new Date()) {
           res
             .status(400)
@@ -49,46 +45,33 @@ export default (db: Database) => {
           return
         }
 
-        // Validate that movie exists
         const movieExists = await db
           .selectFrom('movies')
           .selectAll()
-          .where('id', '=', movieId)
+          .where('id', '=', data.movieId)
           .executeTakeFirst()
 
         if (!movieExists) {
-          res.status(400).json({ message: 'MovieId not in the database' })
+          res.status(400).json({ message: 'movieId not in the database' })
           return
         }
 
-        // Insert new screening
-        const inserted = await db
-          .insertInto('screenings')
-          .values({
-            movieId,
-            timestamp: date.toISOString(),
-            ticketAllocation,
-          })
-          .returningAll()
-          .execute()
-
-        res.status(201).json(inserted)
+        const inserted = await repo.createScreening({
+          ...data,
+          timestamp: date.toISOString(),
+        })
+        res.status(201).json(inserted[0])
       })
     )
 
-    // --- GET /screenings ---
     .get(
       jsonRoute(async (_req, res) => {
-        const screenings = await db
-          .selectFrom('screenings')
-          .selectAll()
-          .execute()
+        const screenings = await repo.getScreenings()
 
-        if (!screenings || screenings.length === 0) {
+        if (screenings.length === 0) {
           res.status(404).json({ message: 'No screenings found' })
           return
         }
-
         res.status(200).json(screenings)
       })
     )
@@ -96,52 +79,42 @@ export default (db: Database) => {
     .put(unsupportedRoute)
     .delete(unsupportedRoute)
 
-  // --- /screenings/:id routes ---
   router
     .route('/:id')
     .get(
       jsonRoute(async (req, res) => {
-        const id = parseId(req.params.id)
-        if (!id) {
+        let id
+        try {
+          id = parseId(req.params.id)
+        } catch {
           res.status(400).json({ message: 'Invalid screening ID' })
           return
         }
 
-        const screening = await db
-          .selectFrom('screenings')
-          .selectAll()
-          .where('id', '=', id)
-          .executeTakeFirst()
-
+        const screening = await repo.getScreeningById(id)
         if (!screening) {
           res.status(404).json({ message: 'Screening not found' })
           return
         }
-
         res.status(200).json(screening)
       })
     )
     .delete(
       jsonRoute(async (req, res) => {
-        const id = parseId(req.params.id)
-        if (!id) {
+        let id
+        try {
+          id = parseId(req.params.id)
+        } catch {
           res.status(400).json({ message: 'Invalid screening ID' })
           return
         }
 
-        const deleted = await db
-          .deleteFrom('screenings')
-          .where('id', '=', id)
-          .returningAll()
-          .execute()
-
-        if (!deleted || deleted.length === 0) {
+        const deleted = await repo.delete(id)
+        if (!deleted) {
           res.status(404).json({ message: 'Screening not found' })
           return
         }
-
-        // Tests expect the deleted record directly, not in an array
-        res.status(200).json(deleted[0])
+        res.status(200).json(deleted)
       })
     )
 

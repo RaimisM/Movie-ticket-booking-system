@@ -2,10 +2,7 @@ import type { Insertable, Selectable } from 'kysely'
 import { z } from 'zod'
 import type { Database } from '@/database'
 import type { Tickets } from '../../database/types'
-import {
-  CreateTicketSchema,
-  GetUserTicketsQuerySchema,
-} from './schema'
+import { CreateTicketSchema, GetUserTicketsQuerySchema } from './schema'
 
 const TABLE = 'tickets'
 type RowInsert = Insertable<Tickets>
@@ -14,13 +11,17 @@ type RowSelectable = Selectable<Tickets>
 const IdSchema = z.number().int().positive()
 
 export default (db: Database) => ({
-  async createTicket(record: RowInsert | RowInsert[]): Promise<RowSelectable[]> {
+  async createTicket(
+    record: RowInsert | RowInsert[]
+  ): Promise<RowSelectable[]> {
     const records = Array.isArray(record) ? record : [record]
 
     const validated = records.map((r) => {
       const result = CreateTicketSchema.safeParse(r)
       if (!result.success) {
-        throw new Error(`Invalid ticket data: ${JSON.stringify(result.error.flatten())}`)
+        throw new Error(
+          `Invalid ticket data: ${JSON.stringify(result.error.flatten())}`
+        )
       }
       return result.data
     })
@@ -31,7 +32,9 @@ export default (db: Database) => ({
   async getTicketById(id: number): Promise<RowSelectable | undefined> {
     const parsed = IdSchema.safeParse(id)
     if (!parsed.success) {
-      throw new Error(`Invalid ticket ID: ${JSON.stringify(parsed.error.flatten())}`)
+      throw new Error(
+        `Invalid ticket ID: ${JSON.stringify(parsed.error.flatten())}`
+      )
     }
 
     return db
@@ -44,7 +47,9 @@ export default (db: Database) => ({
   async getTicketsByUserId(userId: number): Promise<RowSelectable[]> {
     const parsed = GetUserTicketsQuerySchema.safeParse({ userId })
     if (!parsed.success) {
-      throw new Error(`Invalid user ID: ${JSON.stringify(parsed.error.flatten())}`)
+      throw new Error(
+        `Invalid user ID: ${JSON.stringify(parsed.error.flatten())}`
+      )
     }
 
     return db
@@ -61,7 +66,9 @@ export default (db: Database) => ({
   async deleteTicket(id: number): Promise<RowSelectable | undefined> {
     const parsed = IdSchema.safeParse(id)
     if (!parsed.success) {
-      throw new Error(`Invalid ticket ID: ${JSON.stringify(parsed.error.flatten())}`)
+      throw new Error(
+        `Invalid ticket ID: ${JSON.stringify(parsed.error.flatten())}`
+      )
     }
 
     return db
@@ -74,7 +81,9 @@ export default (db: Database) => ({
   async countTicketsByScreeningId(screeningId: number): Promise<number> {
     const parsed = IdSchema.safeParse(screeningId)
     if (!parsed.success) {
-      throw new Error(`Invalid screening ID: ${JSON.stringify(parsed.error.flatten())}`)
+      throw new Error(
+        `Invalid screening ID: ${JSON.stringify(parsed.error.flatten())}`
+      )
     }
 
     const result = await db

@@ -2,12 +2,12 @@ import { Router } from 'express'
 import type { Database } from '@/database'
 import { jsonRoute } from '@/utils/middleware'
 import buildRepository from './repository'
-import {
-  CreateTicketSchema,
-  GetUserTicketsQuerySchema,
-} from './schema'
+import { CreateTicketSchema, GetUserTicketsQuerySchema } from './schema'
 
-export default (db: Database, repoOverride?: ReturnType<typeof buildRepository>) => {
+export default (
+  db: Database,
+  repoOverride?: ReturnType<typeof buildRepository>
+) => {
   const ticketsRepo = repoOverride ?? buildRepository(db)
   const router = Router()
 
@@ -56,7 +56,8 @@ export default (db: Database, repoOverride?: ReturnType<typeof buildRepository>)
         return
       }
 
-      const bookedCount = await ticketsRepo.countTicketsByScreeningId(screeningId)
+      const bookedCount =
+        await ticketsRepo.countTicketsByScreeningId(screeningId)
       const ticketsLeft = screening.ticketAllocation - bookedCount
 
       if (ticketsLeft <= 0) {

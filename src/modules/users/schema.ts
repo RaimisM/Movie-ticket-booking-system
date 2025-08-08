@@ -16,6 +16,6 @@ export const parseInsertable = (record: unknown) => insertable.parse(record)
 export const parseSelectable = (record: unknown) => schema.parse(record)
 export const parseUpdateable = (record: unknown) => updateable.parse(record)
 
-export const keys: (keyof Users)[] = Object.keys(schema.shape) as (keyof z.infer<
-  typeof schema
->)[]
+export const keys: (keyof Users)[] = Object.keys(
+  schema.shape
+) as (keyof z.infer<typeof schema>)[]

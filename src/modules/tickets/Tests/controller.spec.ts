@@ -27,7 +27,7 @@ vi.mock('@/utils/middleware', () => ({
     } catch (error) {
       next(error)
     }
-  }
+  },
 }))
 
 describe('Tickets Controller', () => {
@@ -50,37 +50,31 @@ describe('Tickets Controller', () => {
     it('should get tickets for valid userId', async () => {
       const mockTickets = [
         { id: 1, userId: 1, screeningId: 123 },
-        { id: 2, userId: 1, screeningId: 456 }
+        { id: 2, userId: 1, screeningId: 456 },
       ]
       mockRepo.getTicketsByUserId.mockResolvedValue(mockTickets)
 
-      const response = await request(app)
-        .get('/tickets?userId=1')
-        .expect(200)
+      const response = await request(app).get('/tickets?userId=1').expect(200)
 
       expect(mockRepo.getTicketsByUserId).toHaveBeenCalledWith(1)
       expect(response.body).toEqual(mockTickets)
     })
 
     it('should return 400 for invalid userId query param', async () => {
-      const response = await request(app)
-        .get('/tickets?userId=-1')
-        .expect(400)
+      const response = await request(app).get('/tickets?userId=-1').expect(400)
 
       expect(response.body).toMatchObject({
         message: 'Invalid userId',
-        errors: expect.any(Object)
+        errors: expect.any(Object),
       })
     })
 
     it('should return 400 for missing userId query param', async () => {
-      const response = await request(app)
-        .get('/tickets')
-        .expect(400)
+      const response = await request(app).get('/tickets').expect(400)
 
       expect(response.body).toMatchObject({
         message: 'Invalid userId',
-        errors: expect.any(Object)
+        errors: expect.any(Object),
       })
     })
   })
@@ -88,12 +82,12 @@ describe('Tickets Controller', () => {
   describe('POST /', () => {
     const validTicketData = {
       userId: 1,
-      screeningId: 123
+      screeningId: 123,
     }
 
     const mockScreening = {
       id: 123,
-      ticketAllocation: 100
+      ticketAllocation: 100,
     }
 
     it('should create ticket successfully when tickets are available', async () => {
@@ -116,7 +110,7 @@ describe('Tickets Controller', () => {
     it('should return 400 for invalid request body', async () => {
       const invalidData = {
         userId: -1,
-        screeningId: 123
+        screeningId: 123,
       }
 
       const response = await request(app)
@@ -126,7 +120,7 @@ describe('Tickets Controller', () => {
 
       expect(response.body).toMatchObject({
         message: 'Invalid request body',
-        errors: expect.any(Object)
+        errors: expect.any(Object),
       })
     })
 
@@ -139,7 +133,7 @@ describe('Tickets Controller', () => {
         .expect(404)
 
       expect(response.body).toEqual({
-        message: 'Screening not found'
+        message: 'Screening not found',
       })
     })
 
@@ -153,7 +147,7 @@ describe('Tickets Controller', () => {
         .expect(400)
 
       expect(response.body).toEqual({
-        message: 'No tickets left for this screening'
+        message: 'No tickets left for this screening',
       })
     })
 
@@ -168,13 +162,13 @@ describe('Tickets Controller', () => {
         .expect(400)
 
       expect(response.body).toEqual({
-        message: 'No tickets left for this screening'
+        message: 'No tickets left for this screening',
       })
     })
 
     it('should handle missing required fields in request body', async () => {
       const incompleteData = {
-        userId: 1
+        userId: 1,
       }
 
       const response = await request(app)
@@ -184,7 +178,7 @@ describe('Tickets Controller', () => {
 
       expect(response.body).toMatchObject({
         message: 'Invalid request body',
-        errors: expect.any(Object)
+        errors: expect.any(Object),
       })
     })
   })

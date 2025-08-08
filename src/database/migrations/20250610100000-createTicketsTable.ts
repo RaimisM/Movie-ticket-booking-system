@@ -7,13 +7,18 @@ export async function up(db: Kysely<SqliteDatabase>) {
     .addColumn('id', 'integer', (col) =>
       col.primaryKey().autoIncrement().notNull()
     )
-    .addColumn('userId', 'integer', (col) => col.notNull())
-    .addColumn('screeningId', 'integer', (col) => col.notNull())
-    .addColumn('createdAt', 'text', (col) =>
+    .addColumn('user_id', 'integer', (col) => col.notNull())
+    .addColumn('screening_id', 'integer', (col) => col.notNull())
+    .addColumn('created_at', 'text', (col) =>
       col.notNull().defaultTo('CURRENT_TIMESTAMP')
     )
-    .addForeignKeyConstraint('tickets_user_fk', ['userId'], 'users', ['id'])
-    .addForeignKeyConstraint('tickets_screening_fk', ['screeningId'], 'screenings', ['id'])
+    .addForeignKeyConstraint('tickets_user_fk', ['user_id'], 'users', ['id'])
+    .addForeignKeyConstraint(
+      'tickets_screening_fk',
+      ['screening_id'],
+      'screenings',
+      ['id']
+    )
     .execute()
 }
 
